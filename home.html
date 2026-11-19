@@ -1,0 +1,499 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — My Control{% endblock %}
+
+{% block content %}
+<div class="container py-3">
+
+  <!-- ==================== DASHBOARD HEADER ==================== -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4 pb-3 border-bottom" style="border-color: var(--border-color) !important;">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <h1 class="h3 fw-bold mb-0">Control Center</h1>
+        <span class="badge-saas badge-active"><i class="bi bi-broadcast"></i> Live</span>
+      </div>
+      <p class="text-secondary mb-0">
+        Welcome back, <strong style="color: var(--text-main);">{{ session.get('user_name', 'User') }}</strong>. Here is the operational status of your home assets.
+      </p>
+    </div>
+
+    <div>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal">
+        <i class="bi bi-plus-lg"></i> Add Asset
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== INTERACTIVE STATISTIC CARDS ==================== -->
+  <div class="row g-3 mb-4">
+
+    <!-- Total Products -> Jumps to Inventory Section -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <a href="#inventorySection" class="stat-card stat-card-clickable h-100" title="Click to view all assets below">
+        <div class="stat-card-header">
+          <span class="stat-label">Total Assets</span>
+          <div class="stat-icon-sm primary">
+            <i class="bi bi-box-seam"></i>
+          </div>
+        </div>
+        <div class="stat-value">{{ stats.total_products }}</div>
+      </a>
+    </div>
+
+    <!-- Active Warranties -> Takes to /warranties?status=active -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <a href="{{ url_for('all_warranties', status='active') }}" class="stat-card stat-card-clickable h-100" title="Click to view all active protected warranties">
+        <div class="stat-card-header">
+          <span class="stat-label">Active Protected</span>
+          <div class="stat-icon-sm success">
+            <i class="bi bi-shield-check"></i>
+          </div>
+        </div>
+        <div class="stat-value text-success">{{ stats.active_warranties }}</div>
+      </a>
+    </div>
+
+    <!-- Expired Warranties -> Takes to /warranties?status=expired -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <a href="{{ url_for('all_warranties', status='expired') }}" class="stat-card stat-card-clickable h-100" title="Click to view all expired warranties">
+        <div class="stat-card-header">
+          <span class="stat-label">Expired Warranties</span>
+          <div class="stat-icon-sm warning">
+            <i class="bi bi-shield-x"></i>
+          </div>
+        </div>
+        <div class="stat-value text-danger">{{ stats.expired_warranties }}</div>
+      </a>
+    </div>
+
+    <!-- Upcoming Maintenance -> Takes to /maintenance?status=upcoming -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <a href="{{ url_for('all_maintenance', status='upcoming') }}" class="stat-card stat-card-clickable h-100" title="Click to view upcoming maintenance tasks">
+        <div class="stat-card-header">
+          <span class="stat-label">Upcoming Service</span>
+          <div class="stat-icon-sm info">
+            <i class="bi bi-calendar-check"></i>
+          </div>
+        </div>
+        <div class="stat-value text-info">{{ stats.upcoming_maintenance }}</div>
+      </a>
+    </div>
+
+    <!-- Overdue Maintenance -> Takes to /maintenance?status=overdue -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <a href="{{ url_for('all_maintenance', status='overdue') }}" class="stat-card stat-card-clickable h-100" title="Click to view overdue maintenance tasks">
+        <div class="stat-card-header">
+          <span class="stat-label">Overdue Service</span>
+          <div class="stat-icon-sm danger">
+            <i class="bi bi-exclamation-triangle"></i>
+          </div>
+        </div>
+        <div class="stat-value {% if stats.overdue_maintenance > 0 %}text-danger{% endif %}">{{ stats.overdue_maintenance }}</div>
+      </a>
+    </div>
+
+    <!-- Total Maintenance Spent -> Takes to /expenses -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <a href="{{ url_for('expenses') }}" class="stat-card stat-card-clickable h-100" title="Click to view full financial expenses & valuation breakdown">
+        <div class="stat-card-header">
+          <span class="stat-label">Service Spent</span>
+          <div class="stat-icon-sm primary" style="background: var(--brand-warm-light); color: var(--brand-warm);">
+            <i class="bi bi-wallet2"></i>
+          </div>
+        </div>
+        <div class="stat-value" style="font-size: 1.35rem;">₹{{ "{:,.0f}".format(stats.total_maintenance_cost) }}</div>
+      </a>
+    </div>
+
+  </div>
+
+  <!-- ==================== CRITICAL ATTENTION ALERTS ==================== -->
+  {% if overdue_maintenance or upcoming_warranties or expired_warranties %}
+  <div class="row g-3 mb-4">
+
+    <!-- Overdue Maintenance Alert -->
+    {% if overdue_maintenance %}
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm" style="border-left: 4px solid var(--danger) !important; background: var(--bg-surface);">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background: var(--danger-bg);">
+          <span class="fw-bold" style="color: var(--danger-text);">
+            <i class="bi bi-exclamation-octagon-fill text-danger me-1"></i> Overdue Maintenance Tasks
+          </span>
+          <span class="badge-saas badge-danger">{{ overdue_maintenance|length }} Overdue</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="list-group list-group-flush">
+            {% for item in overdue_maintenance %}
+            <div class="list-group-item d-flex justify-content-between align-items-center p-3" style="background: transparent; border-color: var(--border-color-subtle);">
+              <div>
+                <h6 class="mb-1 fw-bold" style="color: var(--text-main);">{{ item.task }}</h6>
+                <div class="small" style="color: var(--text-secondary);">
+                  Asset: <strong style="color: var(--text-main);">{{ item.product_name }}</strong> &bull; Due: <span class="text-danger fw-semibold">{{ item.next_due_date }}</span>
+                  ({{ item.days_overdue }} days ago)
+                </div>
+              </div>
+              <a href="{{ url_for('view_maintenance', product_id=item.product_id) }}" class="btn btn-sm btn-outline-danger text-nowrap ms-2">
+                Resolve <i class="bi bi-arrow-right"></i>
+              </a>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Upcoming Warranty Expiries -->
+    {% if upcoming_warranties %}
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm" style="border-left: 4px solid var(--warning) !important; background: var(--bg-surface);">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background: var(--warning-bg);">
+          <span class="fw-bold" style="color: var(--warning-text);">
+            <i class="bi bi-hourglass-split text-warning me-1"></i> Warranties Expiring Within 30 Days
+          </span>
+          <span class="badge-saas badge-warning">{{ upcoming_warranties|length }} Expiring Soon</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="list-group list-group-flush">
+            {% for w in upcoming_warranties %}
+            <div class="list-group-item d-flex justify-content-between align-items-center p-3" style="background: transparent; border-color: var(--border-color-subtle);">
+              <div>
+                <h6 class="mb-1 fw-bold" style="color: var(--text-main);">{{ w.product_name }}</h6>
+                <div class="small" style="color: var(--text-secondary);">
+                  Type: <strong style="color: var(--text-main);">{{ w.warranty_type }}</strong> &bull; Expires: <span class="text-warning fw-semibold">{{ w.expiry_date }}</span>
+                  (in {{ w.days_left }} days)
+                </div>
+              </div>
+              <a href="{{ url_for('view_warranties', product_id=w.product_id) }}" class="btn btn-sm btn-secondary text-nowrap ms-2">
+                View Policy <i class="bi bi-shield-check"></i>
+              </a>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Expired Warranty Alerts -->
+    {% if expired_warranties %}
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm" style="border-left: 4px solid var(--danger) !important; background: var(--bg-surface);">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background: var(--danger-bg);">
+          <span class="fw-bold" style="color: var(--danger-text);">
+            <i class="bi bi-shield-x text-danger me-1"></i> Expired Warranties
+          </span>
+          <span class="badge-saas badge-danger">{{ expired_warranties|length }} Expired</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="list-group list-group-flush">
+            {% for w in expired_warranties %}
+            <div class="list-group-item d-flex justify-content-between align-items-center p-3" style="background: transparent; border-color: var(--border-color-subtle);">
+              <div>
+                <h6 class="mb-1 fw-bold" style="color: var(--text-main);">{{ w.product_name }}</h6>
+                <div class="small" style="color: var(--text-secondary);">
+                  Type: <strong style="color: var(--text-main);">{{ w.warranty_type }}</strong> &bull; Expired On: <span class="text-danger fw-semibold">{{ w.expiry_date }}</span>
+                  ({{ w.days_ago }} days ago)
+                </div>
+              </div>
+              <a href="{{ url_for('view_warranties', product_id=w.product_id) }}" class="btn btn-sm btn-outline-danger text-nowrap ms-2">
+                Renew / Extend <i class="bi bi-arrow-right"></i>
+              </a>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+  {% endif %}
+
+  <!-- ==================== PRODUCT INVENTORY CATALOG ==================== -->
+  <div id="inventorySection" class="card border-0 shadow-sm mb-5">
+    <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
+      <div>
+        <h4 class="h5 mb-0 fw-bold">Inventory & Assets Directory</h4>
+        <small class="text-muted">Manage warranties, maintenance schedules, and purchase documentation</small>
+      </div>
+
+      <!-- Realtime Filter / Search -->
+      <div class="d-flex align-items-center gap-2 w-100 w-md-auto" style="max-width: 320px;">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text border-end-0" style="background: var(--bg-muted); border-color: var(--border-color); color: var(--text-secondary);">
+            <i class="bi bi-search"></i>
+          </span>
+          <input
+            type="text"
+            id="inventorySearchInput"
+            class="form-control border-start-0"
+            placeholder="Search assets, brands, categories..."
+            onkeyup="filterInventoryCards()"
+          >
+        </div>
+      </div>
+    </div>
+
+    <div class="card-body p-4">
+
+      {% if products %}
+        <div class="row g-3" id="productsGrid">
+          {% for product in products %}
+            <div class="col-md-6 col-xl-4 product-item-col"
+                 data-name="{{ product.name|lower }}"
+                 data-category="{{ (product.category or '')|lower }}"
+                 data-brand="{{ (product.brand or '')|lower }}">
+
+              <div class="card card-hoverable h-100 border" style="background: var(--bg-surface); border-color: var(--border-color) !important;">
+                <div class="card-body p-4 d-flex flex-column">
+
+                  <!-- Product Image / Banner -->
+                  {% if product.image_path %}
+                    <div class="mb-3 rounded overflow-hidden position-relative" style="height: 180px; background: var(--bg-body); border: 1px solid var(--border-color-subtle);">
+                      <img src="{{ url_for('static', filename=product.image_path) }}" 
+                           alt="{{ product.name }}" 
+                           class="w-100 h-100" 
+                           style="object-fit: cover;"
+                           loading="lazy">
+                    </div>
+                  {% endif %}
+
+                  <!-- Header Info -->
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <span class="badge-saas badge-neutral text-uppercase" style="font-size: 0.7rem;">
+                      <i class="bi bi-tag-fill me-1 text-primary"></i> {{ product.category or 'General' }}
+                    </span>
+                    {% if product.brand %}
+                      <span class="small fw-semibold text-secondary">{{ product.brand }}</span>
+                    {% endif %}
+                  </div>
+
+                  <!-- Product Name -->
+                  <h5 class="fw-bold mb-2 text-truncate" title="{{ product.name }}" style="color: var(--text-main);">
+                    {{ product.name }}
+                  </h5>
+
+                  <!-- Metadata -->
+                  <div class="small text-secondary mb-3">
+                    {% if product.model_number %}
+                      <div><i class="bi bi-upc-scan me-1 text-muted"></i> Model: <strong>{{ product.model_number }}</strong></div>
+                    {% endif %}
+                    {% if product.purchase_date %}
+                      <div><i class="bi bi-calendar3 me-1 text-muted"></i> Purchased: {{ product.purchase_date }}</div>
+                    {% endif %}
+                    {% if product.purchase_price %}
+                      <div><i class="bi bi-cash-stack me-1 text-muted"></i> Cost: <strong>₹{{ "{:,.2f}".format(product.purchase_price) }}</strong></div>
+                    {% endif %}
+                    {% if product.store %}
+                      <div><i class="bi bi-shop me-1 text-muted"></i> Store: {{ product.store }}</div>
+                    {% endif %}
+                  </div>
+
+                  <!-- Action Buttons -->
+                  <div class="mt-auto pt-3 border-top d-flex flex-wrap gap-2 justify-content-between" style="border-color: var(--border-color-subtle) !important;">
+                    <div class="d-flex gap-1">
+                      <a href="{{ url_for('view_warranties', product_id=product.id) }}"
+                         class="btn btn-sm btn-outline-primary"
+                         title="Manage Warranty">
+                        <i class="bi bi-shield-check"></i> Warranty
+                      </a>
+
+                      <a href="{{ url_for('view_maintenance', product_id=product.id) }}"
+                         class="btn btn-sm btn-secondary"
+                         title="Manage Maintenance">
+                        <i class="bi bi-tools"></i> Service
+                      </a>
+                    </div>
+
+                    <div class="d-flex gap-1">
+                      <a href="{{ url_for('edit_product', product_id=product.id) }}"
+                         class="btn btn-sm btn-ghost text-secondary"
+                         title="Edit Asset">
+                        <i class="bi bi-pencil-square"></i>
+                      </a>
+
+                      <form method="POST"
+                            action="{{ url_for('delete_product', product_id=product.id) }}"
+                            class="d-inline"
+                            onsubmit="return confirm('Are you sure you want to delete this asset? All warranty and service records will be permanently removed.');">
+                        <button type="submit" class="btn btn-sm btn-ghost text-danger" title="Delete Asset">
+                          <i class="bi bi-trash3"></i>
+                        </button>
+                      </form>
+                    </div>
+
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+          {% endfor %}
+        </div>
+
+        <div id="noSearchResults" class="empty-state d-none my-3">
+          <div class="empty-state-icon"><i class="bi bi-search"></i></div>
+          <div class="empty-state-title">No matching assets found</div>
+          <p class="empty-state-text">Try adjusting your search terms.</p>
+        </div>
+
+      {% else %}
+
+        <!-- Empty State -->
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <i class="bi bi-box-seam"></i>
+          </div>
+          <h4 class="empty-state-title">No Assets Registered Yet</h4>
+          <p class="empty-state-text">
+            Start tracking your household appliances, electronics, warranties, and maintenance tasks today.
+          </p>
+          <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal">
+            <i class="bi bi-plus-lg"></i> Register Your First Asset
+          </button>
+        </div>
+
+      {% endif %}
+
+    </div>
+  </div>
+
+
+</div>
+
+
+<!-- ==================== ADD PRODUCT MODAL ==================== -->
+<div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg" style="background: var(--bg-surface); border-radius: var(--radius-xl); border: 1px solid var(--border-color) !important;">
+
+      <div class="modal-header" style="border-bottom: 1px solid var(--border-color-subtle);">
+        <div class="d-flex align-items-center gap-2">
+          <div class="stat-icon primary" style="width: 36px; height: 36px; font-size: 1.1rem;">
+            <i class="bi bi-box-arrow-in-down"></i>
+          </div>
+          <h5 class="modal-title fw-bold" id="addProductModalLabel">Register New Asset</h5>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <form method="POST" action="{{ url_for('add_product') }}" enctype="multipart/form-data">
+        <div class="modal-body p-4">
+
+          <div class="row g-3">
+
+            <!-- Product Name -->
+            <div class="col-md-8">
+              <label class="form-label">Asset Name <span class="text-danger">*</span></label>
+              <input type="text" name="name" class="form-control" placeholder="e.g. Sony Bravia 55' OLED TV" required>
+            </div>
+
+            <!-- Category -->
+            <div class="col-md-4">
+              <label class="form-label">Category</label>
+              <input type="text" name="category" class="form-control" placeholder="e.g. Home Entertainment" list="categorySuggestions">
+              <datalist id="categorySuggestions">
+                <option value="Electronics">
+                <option value="Home Appliances">
+                <option value="Kitchen Appliances">
+                <option value="HVAC / Climate">
+                <option value="Furniture">
+                <option value="Vehicles">
+                <option value="Plumbing & Electrical">
+              </datalist>
+            </div>
+
+            <!-- Product Photo -->
+            <div class="col-12">
+              <label class="form-label d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-camera me-1"></i> Asset Photo</span>
+                <span class="text-muted small">Optional (JPG, PNG, WEBP)</span>
+              </label>
+              <input type="file" name="image" class="form-control" accept="image/png, image/jpeg, image/webp, image/gif">
+              <div class="form-text">Upload a picture of the product, device label, or serial plate.</div>
+            </div>
+
+            <!-- Brand -->
+            <div class="col-md-6">
+              <label class="form-label">Brand / Manufacturer</label>
+              <input type="text" name="brand" class="form-control" placeholder="e.g. Sony, LG, Samsung, Whirlpool">
+            </div>
+
+            <!-- Model Number -->
+            <div class="col-md-6">
+              <label class="form-label">Model / Serial Number</label>
+              <input type="text" name="model_number" class="form-control" placeholder="e.g. XR-55A80L">
+            </div>
+
+            <!-- Purchase Date -->
+            <div class="col-md-4">
+              <label class="form-label">Purchase Date</label>
+              <input type="date" name="purchase_date" class="form-control">
+            </div>
+
+            <!-- Purchase Price -->
+            <div class="col-md-4">
+              <label class="form-label">Purchase Price (₹)</label>
+              <input type="number" step="0.01" min="0" name="purchase_price" class="form-control" placeholder="0.00">
+            </div>
+
+            <!-- Store / Merchant -->
+            <div class="col-md-4">
+              <label class="form-label">Store / Retailer</label>
+              <input type="text" name="store" class="form-control" placeholder="e.g. Reliance Digital, Amazon">
+            </div>
+
+            <!-- Notes -->
+            <div class="col-12">
+              <label class="form-label">Asset Notes & Documentation Info</label>
+              <textarea name="notes" rows="2" class="form-control" placeholder="Serial numbers, invoice numbers, warranty extension notes..."></textarea>
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="modal-footer" style="border-top: 1px solid var(--border-color-subtle);">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg"></i> Save Asset
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // Real-time client-side filter
+  function filterInventoryCards() {
+    const input = document.getElementById('inventorySearchInput').value.toLowerCase().trim();
+    const cols = document.querySelectorAll('.product-item-col');
+    let visibleCount = 0;
+
+    cols.forEach(col => {
+      const name = col.getAttribute('data-name') || '';
+      const category = col.getAttribute('data-category') || '';
+      const brand = col.getAttribute('data-brand') || '';
+
+      if (name.includes(input) || category.includes(input) || brand.includes(input)) {
+        col.classList.remove('d-none');
+        visibleCount++;
+      } else {
+        col.classList.add('d-none');
+      }
+    });
+
+    const noResults = document.getElementById('noSearchResults');
+    if (noResults) {
+      if (visibleCount === 0 && cols.length > 0) {
+        noResults.classList.remove('d-none');
+      } else {
+        noResults.classList.add('d-none');
+      }
+    }
+  }
+</script>
+{% endblock %}

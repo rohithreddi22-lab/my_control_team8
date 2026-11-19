@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Add Warranty Policy — {{ product.name }} — My Control{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-6 col-md-8">
+
+      <!-- Back Navigation -->
+      <div class="mb-3">
+        <a href="{{ url_for('view_warranties', product_id=product.id) }}" class="btn btn-ghost btn-sm">
+          <i class="bi bi-arrow-left"></i> Back to Warranty Policies
+        </a>
+      </div>
+
+      <!-- Card -->
+      <div class="card shadow-md border-0" style="background: var(--bg-surface); border-radius: var(--radius-xl); border: 1px solid var(--border-color) !important;">
+        <div class="card-header d-flex align-items-center gap-2">
+          <div class="stat-icon primary" style="width: 36px; height: 36px; font-size: 1.1rem;">
+            <i class="bi bi-shield-plus"></i>
+          </div>
+          <div>
+            <h5 class="mb-0 fw-bold">Register Warranty Policy</h5>
+            <small class="text-muted">Asset: <strong style="color: var(--text-main);">{{ product.name }}</strong></small>
+          </div>
+        </div>
+
+        <form method="POST">
+          <div class="card-body p-4">
+
+            <!-- Warranty Type -->
+            <div class="mb-3">
+              <label class="form-label">Warranty Type <span class="text-danger">*</span></label>
+              <select name="warranty_type" class="form-select" required>
+                <option value="">Select warranty coverage type...</option>
+                <option value="Manufacturer Standard Warranty">Manufacturer Standard Warranty</option>
+                <option value="Extended Warranty Protection">Extended Warranty Protection</option>
+                <option value="Retailer / Store Warranty">Retailer / Store Warranty</option>
+                <option value="Annual Maintenance Contract (AMC)">Annual Maintenance Contract (AMC)</option>
+                <option value="Accidental Damage Protection">Accidental Damage Protection</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <!-- Start & Expiry Dates -->
+            <div class="row g-3 mb-3">
+              <div class="col-sm-6">
+                <label class="form-label">Start Date <span class="text-danger">*</span></label>
+                <input type="date" name="start_date" id="warrantyStartDate" class="form-control" required>
+              </div>
+
+              <div class="col-sm-6">
+                <label class="form-label">Expiry Date <span class="text-danger">*</span></label>
+                <input type="date" name="expiry_date" id="warrantyExpiryDate" class="form-control" required>
+              </div>
+            </div>
+
+            <!-- Provider -->
+            <div class="mb-3">
+              <label class="form-label">Warranty Provider / Company</label>
+              <input type="text" name="provider" class="form-control" placeholder="e.g. AppleCare, Samsung Care+, Croma ZipCare, Bajaj Allianz">
+            </div>
+
+          </div>
+
+          <div class="card-footer d-flex justify-content-between align-items-center p-3">
+            <a href="{{ url_for('view_warranties', product_id=product.id) }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check-lg"></i> Save Warranty Policy
+            </button>
+          </div>
+        </form>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

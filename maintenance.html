@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Maintenance Logs — {{ product.name }} — My Control{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- Breadcrumb & Back Navigation -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <a href="/" class="btn btn-ghost btn-sm">
+      <i class="bi bi-arrow-left"></i> Back to Dashboard
+    </a>
+    <a href="{{ url_for('add_maintenance', product_id=product.id) }}" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg"></i> Record Maintenance Task
+    </a>
+  </div>
+
+  <!-- Asset Header Card -->
+  <div class="card shadow-sm border-0 mb-4" style="background: var(--bg-surface); border: 1px solid var(--border-color) !important;">
+    <div class="card-body p-4 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="brand-icon" style="width: 48px; height: 48px; font-size: 1.4rem;">
+          <i class="bi bi-tools"></i>
+        </div>
+        <div>
+          <span class="badge-saas badge-neutral text-uppercase" style="font-size: 0.7rem;">Asset Maintenance & Service</span>
+          <h2 class="h4 fw-bold mb-0 mt-1" style="color: var(--text-main);">{{ product.name }}</h2>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('view_warranties', product_id=product.id) }}" class="btn btn-secondary btn-sm">
+          <i class="bi bi-shield-check"></i> Warranty Coverage
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Maintenance Records Grid -->
+  {% if maintenance_records %}
+    <div class="row g-3">
+      {% for m in maintenance_records %}
+        {% set days = m.days_until_due %}
+        <div class="col-md-6">
+          <div class="card h-100 shadow-sm border" style="background: var(--bg-surface); border-color: var(--border-color) !important;">
+            <div class="card-body p-4 d-flex flex-column">
+
+              <!-- Task Header & Status Pill -->
+              <div class="d-flex justify-content-between align-items-start mb-3">
+                <h5 class="fw-bold mb-0 text-truncate" title="{{ m.task }}" style="color: var(--text-main);">
+                  {{ m.task }}
+                </h5>
+
+                {% if days is not none %}
+                  {% if days < 0 %}
+                    <span class="badge-saas badge-danger">
+                      <i class="bi bi-exclamation-octagon-fill"></i> Overdue ({{ -days }}d)
+                    </span>
+                  {% elif days == 0 %}
+                    <span class="badge-saas badge-danger">
+                      <i class="bi bi-bell-fill"></i> Due Today!
+                    </span>
+                  {% elif days <= 30 %}
+                    <span class="badge-saas badge-warning">
+                      <i class="bi bi-clock"></i> Upcoming ({{ days }}d)
+                    </span>
+                  {% else %}
+                    <span class="badge-saas badge-info">
+                      <i class="bi bi-calendar2-check"></i> Scheduled
+                    </span>
+                  {% endif %}
+                {% else %}
+                  <span class="badge-saas badge-neutral">Logged</span>
+                {% endif %}
+              </div>
+
+              <!-- Dates & Details -->
+              <div class="small mb-3" style="color: var(--text-secondary);">
+                <div class="row g-2">
+                  <div class="col-6">
+                    <span class="text-muted d-block" style="font-size: 0.75rem;">LAST COMPLETED</span>
+                    <strong>{{ m.last_done_date or 'Not recorded' }}</strong>
+                  </div>
+                  <div class="col-6">
+                    <span class="text-muted d-block" style="font-size: 0.75rem;">NEXT DUE DATE</span>
+                    <strong class="{% if days is not none and days < 0 %}text-danger{% elif days is not none and days <= 30 %}text-warning{% endif %}">
+                      {{ m.next_due_date or 'No schedule' }}
+                    </strong>
+                  </div>
+                </div>
+
+                <hr style="border-color: var(--border-color-subtle);">
+
+                <div class="row g-2">
+                  <div class="col-6">
+                    <span class="text-muted d-block" style="font-size: 0.75rem;">SERVICE PROVIDER</span>
+                    <strong>{{ m.service_provider or 'Self / Unspecified' }}</strong>
+                  </div>
+                  <div class="col-6">
+                    <span class="text-muted d-block" style="font-size: 0.75rem;">SERVICE COST</span>
+                    <strong class="text-success" style="font-size: 1.05rem;">
+                      {% if m.cost is not none %}
+                        ₹{{ "{:,.2f}".format(m.cost) }}
+                      {% else %}
+                        ₹0.00
+                      {% endif %}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Notes -->
+              {% if m.notes %}
+                <div class="mt-auto p-2 rounded-2" style="background: var(--bg-muted); font-size: 0.85rem; color: var(--text-secondary);">
+                  <i class="bi bi-chat-left-text me-1 text-muted"></i> {{ m.notes }}
+                </div>
+              {% endif %}
+
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">
+        <i class="bi bi-tools"></i>
+      </div>
+      <h4 class="empty-state-title">No Maintenance Logs Found</h4>
+      <p class="empty-state-text">
+        Keep your appliances and home equipment running at peak performance with scheduled maintenance and servicing records.
+      </p>
+      <a href="{{ url_for('add_maintenance', product_id=product.id) }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> Record First Service
+      </a>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

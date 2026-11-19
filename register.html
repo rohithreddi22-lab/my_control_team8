@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Create Account — My Control{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-7 col-lg-5 col-xl-4">
+
+      <!-- Auth Card -->
+      <div class="card shadow-lg border-0" style="background: var(--bg-surface); border-radius: var(--radius-xl); border: 1px solid var(--border-color) !important;">
+        <div class="card-body p-4 p-sm-5">
+
+          <!-- Header -->
+          <div class="text-center mb-4">
+            <div class="brand-icon mx-auto mb-3" style="width: 48px; height: 48px; font-size: 1.4rem;">
+              <i class="bi bi-person-plus-fill"></i>
+            </div>
+            <h2 class="h3 fw-bold mb-1">Get Started</h2>
+            <p class="text-muted small">Create your digital asset control center</p>
+          </div>
+
+          <!-- Form -->
+          <form method="POST" action="{{ url_for('register') }}" onsubmit="return validateRegister();">
+
+            <!-- Full Name -->
+            <div class="mb-3">
+              <label class="form-label">Full Name</label>
+              <div class="input-group">
+                <span class="input-group-text border-end-0" style="background: var(--bg-muted); border-color: var(--border-color); color: var(--text-secondary);">
+                  <i class="bi bi-person"></i>
+                </span>
+                <input
+                  type="text"
+                  name="name"
+                  id="regName"
+                  class="form-control border-start-0"
+                  placeholder="John Doe"
+                  required
+                  autocomplete="name"
+                >
+              </div>
+            </div>
+
+            <!-- Email Address -->
+            <div class="mb-3">
+              <label class="form-label">Email Address</label>
+              <div class="input-group">
+                <span class="input-group-text border-end-0" style="background: var(--bg-muted); border-color: var(--border-color); color: var(--text-secondary);">
+                  <i class="bi bi-envelope"></i>
+                </span>
+                <input
+                  type="email"
+                  name="email"
+                  id="regEmail"
+                  class="form-control border-start-0"
+                  placeholder="name@example.com"
+                  required
+                  autocomplete="email"
+                >
+              </div>
+            </div>
+
+            <!-- Password -->
+            <div class="mb-3">
+              <label class="form-label">Password</label>
+              <div class="input-group">
+                <span class="input-group-text border-end-0" style="background: var(--bg-muted); border-color: var(--border-color); color: var(--text-secondary);">
+                  <i class="bi bi-lock"></i>
+                </span>
+                <input
+                  type="password"
+                  name="password"
+                  id="regPassword"
+                  class="form-control border-start-0 border-end-0"
+                  placeholder="At least 6 characters"
+                  minlength="6"
+                  required
+                  autocomplete="new-password"
+                >
+                <button
+                  type="button"
+                  class="input-group-text border-start-0"
+                  id="toggleRegPassword"
+                  style="background: var(--bg-muted); border-color: var(--border-color); color: var(--text-secondary); cursor: pointer;"
+                  title="Toggle visibility"
+                >
+                  <i class="bi bi-eye" id="toggleRegIcon"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Confirm Password -->
+            <div class="mb-4">
+              <label class="form-label">Confirm Password</label>
+              <div class="input-group">
+                <span class="input-group-text border-end-0" style="background: var(--bg-muted); border-color: var(--border-color); color: var(--text-secondary);">
+                  <i class="bi bi-shield-check"></i>
+                </span>
+                <input
+                  type="password"
+                  id="regConfirmPassword"
+                  class="form-control border-start-0"
+                  placeholder="Repeat your password"
+                  minlength="6"
+                  required
+                  autocomplete="new-password"
+                >
+              </div>
+              <small class="text-danger d-none" id="passwordMismatchError">Passwords do not match.</small>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+              <i class="bi bi-check2-circle"></i> Create Free Account
+            </button>
+
+          </form>
+
+          <!-- Footer Switch -->
+          <div class="text-center mt-4 pt-2 border-top" style="border-color: var(--border-color-subtle) !important;">
+            <p class="small mb-0" style="color: var(--text-secondary);">
+              Already have an account?
+              <a href="{{ url_for('login') }}" class="fw-semibold text-decoration-none">Sign in here</a>
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Trust Notice -->
+      <div class="text-center mt-4">
+        <p class="small text-muted mb-0">
+          By signing up, you agree to our Terms of Service & Privacy Policy.
+        </p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // Toggle password visibility
+  document.getElementById('toggleRegPassword')?.addEventListener('click', function () {
+    const pwd = document.getElementById('regPassword');
+    const icon = document.getElementById('toggleRegIcon');
+    if (pwd.type === 'password') {
+      pwd.type = 'text';
+      icon.className = 'bi bi-eye-slash';
+    } else {
+      pwd.type = 'password';
+      icon.className = 'bi bi-eye';
+    }
+  });
+
+  // Client-side confirm password check
+  function validateRegister() {
+    const p1 = document.getElementById('regPassword').value;
+    const p2 = document.getElementById('regConfirmPassword').value;
+    const err = document.getElementById('passwordMismatchError');
+    if (p1 !== p2) {
+      err.classList.remove('d-none');
+      return false;
+    }
+    err.classList.add('d-none');
+    return true;
+  }
+</script>
+{% endblock %}

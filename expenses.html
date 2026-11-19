@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}Expenses & Financial Analytics — My Control{% endblock %}
+
+{% block extra_head %}
+<!-- Chart.js 4 CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4 pb-3 border-bottom" style="border-color: var(--border-color) !important;">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <a href="/" class="btn btn-ghost btn-sm p-0 me-2 text-secondary"><i class="bi bi-arrow-left fs-5"></i></a>
+        <h1 class="h3 fw-bold mb-0">Financial Analytics & Expenses</h1>
+      </div>
+      <p class="text-secondary mb-0">Audit total asset investments, ongoing servicing costs, and repair budgets.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="/calendar" class="btn btn-secondary btn-sm">
+        <i class="bi bi-calendar3"></i> Maintenance Calendar
+      </a>
+      <a href="/" class="btn btn-primary btn-sm">
+        <i class="bi bi-grid-fill"></i> Dashboard
+      </a>
+    </div>
+  </div>
+
+  <!-- Summary Metric Cards -->
+  <div class="row g-3 mb-4">
+
+    <!-- Total Asset Valuation -->
+    <div class="col-md-4">
+      <div class="stat-card h-100">
+        <div class="stat-card-header">
+          <span class="stat-label">Asset Portfolio Value</span>
+          <div class="stat-icon-sm primary">
+            <i class="bi bi-bank"></i>
+          </div>
+        </div>
+        <div class="stat-value text-primary">₹{{ "{:,.2f}".format(total_purchase) }}</div>
+        <small class="text-muted">Total original acquisition cost</small>
+      </div>
+    </div>
+
+    <!-- Total Service Cost -->
+    <div class="col-md-4">
+      <div class="stat-card h-100">
+        <div class="stat-card-header">
+          <span class="stat-label">Lifetime Service Spent</span>
+          <div class="stat-icon-sm primary" style="background: var(--brand-warm-light); color: var(--brand-warm);">
+            <i class="bi bi-wrench"></i>
+          </div>
+        </div>
+        <div class="stat-value" style="color: var(--brand-warm);">₹{{ "{:,.2f}".format(total_maintenance) }}</div>
+        <small class="text-muted">Total maintenance & repairs</small>
+      </div>
+    </div>
+
+    <!-- Combined Capital -->
+    <div class="col-md-4">
+      <div class="stat-card h-100">
+        <div class="stat-card-header">
+          <span class="stat-label">Total Capital Outlay</span>
+          <div class="stat-icon-sm success">
+            <i class="bi bi-pie-chart-fill"></i>
+          </div>
+        </div>
+        <div class="stat-value text-success">₹{{ "{:,.2f}".format(total_combined) }}</div>
+        <small class="text-muted">Acquisitions + upkeep spend</small>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== VISUAL CHARTS ANALYTICS ==================== -->
+  <div class="row g-3 mb-4">
+
+    <!-- Category Doughnut Chart -->
+    <div class="col-lg-5">
+      <div class="card h-100 shadow-sm border-0" style="background: var(--bg-surface); border: 1px solid var(--border-color) !important;">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0 fw-bold"><i class="bi bi-pie-chart-fill me-2 text-primary"></i> Value by Category</h6>
+          <span class="badge-saas badge-neutral">Acquisition %</span>
+        </div>
+        <div class="card-body p-4 d-flex flex-column align-items-center justify-content-center">
+          <div id="categoryChartWrapper" style="position: relative; width: 100%; max-width: 280px; height: 260px;">
+            <canvas id="categoryDoughnutChart"></canvas>
+          </div>
+          <div id="categoryChartEmpty" class="text-center text-muted small d-none py-4">
+            <i class="bi bi-pie-chart fs-2 d-block mb-2"></i>
+            Register purchase costs for assets to visualize category distribution.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Maintenance Spending by Asset Bar Chart -->
+    <div class="col-lg-7">
+      <div class="card h-100 shadow-sm border-0" style="background: var(--bg-surface); border: 1px solid var(--border-color) !important;">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0 fw-bold"><i class="bi bi-bar-chart-fill me-2 text-warning"></i> Maintenance Spend by Asset</h6>
+          <span class="badge-saas badge-neutral">Top Outlays</span>
+        </div>
+        <div class="card-body p-4 d-flex flex-column justify-content-center">
+          <div id="maintenanceChartWrapper" style="position: relative; width: 100%; height: 260px;">
+            <canvas id="maintenanceBarChart"></canvas>
+          </div>
+          <div id="maintenanceChartEmpty" class="text-center text-muted small d-none py-4">
+            <i class="bi bi-wrench-adjustable fs-2 d-block mb-2"></i>
+            Record service expenses to view cost comparison across appliances.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Maintenance Expenses Table -->
+  <div class="card shadow-sm border-0 mb-4" style="background: var(--bg-surface); border: 1px solid var(--border-color) !important;">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0 fw-bold"><i class="bi bi-receipt me-2 text-primary"></i> Maintenance & Service Cost Logs</h5>
+      <span class="badge-saas badge-neutral">{{ maintenance_expenses|length }} entries</span>
+    </div>
+    <div class="card-body p-0">
+      {% if maintenance_expenses %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" style="color: var(--text-main);">
+            <thead style="background: var(--bg-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">
+              <tr>
+                <th class="ps-4">Asset</th>
+                <th>Service Task</th>
+                <th>Technician / Provider</th>
+                <th>Date Logged</th>
+                <th class="text-end pe-4">Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for exp in maintenance_expenses %}
+                <tr style="border-color: var(--border-color-subtle);">
+                  <td class="ps-4">
+                    <strong style="color: var(--text-main);">{{ exp.product_name }}</strong>
+                    <div class="small text-muted">{{ exp.category or 'General' }}</div>
+                  </td>
+                  <td>{{ exp.task }}</td>
+                  <td>{{ exp.service_provider or 'Self / Authorized' }}</td>
+                  <td>{{ exp.last_done_date or 'Recent' }}</td>
+                  <td class="text-end pe-4 fw-bold text-success" style="font-size: 1.05rem;">
+                    ₹{{ "{:,.2f}".format(exp.cost) }}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-4 text-center text-muted">
+          No service expenses recorded with non-zero amounts yet.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Asset Purchase Portfolio Table -->
+  <div class="card shadow-sm border-0 mb-4" style="background: var(--bg-surface); border: 1px solid var(--border-color) !important;">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0 fw-bold"><i class="bi bi-cart-check me-2 text-success"></i> Asset Acquisition Investments</h5>
+      <span class="badge-saas badge-neutral">{{ product_expenses|length }} assets</span>
+    </div>
+    <div class="card-body p-0">
+      {% if product_expenses %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" style="color: var(--text-main);">
+            <thead style="background: var(--bg-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">
+              <tr>
+                <th class="ps-4">Asset Name</th>
+                <th>Category</th>
+                <th>Brand</th>
+                <th>Purchase Date</th>
+                <th>Store / Merchant</th>
+                <th class="text-end pe-4">Purchase Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in product_expenses %}
+                <tr style="border-color: var(--border-color-subtle);">
+                  <td class="ps-4 fw-bold" style="color: var(--text-main);">{{ p.name }}</td>
+                  <td><span class="badge-saas badge-neutral">{{ p.category or 'General' }}</span></td>
+                  <td>{{ p.brand or 'N/A' }}</td>
+                  <td>{{ p.purchase_date or 'N/A' }}</td>
+                  <td>{{ p.store or 'N/A' }}</td>
+                  <td class="text-end pe-4 fw-bold text-primary" style="font-size: 1.05rem;">
+                    ₹{{ "{:,.2f}".format(p.purchase_price) }}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-4 text-center text-muted">
+          No purchase prices registered for any assets yet. Edit your assets to record purchase costs.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Chart Colors Palette
+  const chartColors = [
+    '#2563EB', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'
+  ];
+
+  // 1. Category Doughnut Chart
+  const catLabels = {{ cat_labels_json | safe }};
+  const catValues = {{ cat_values_json | safe }};
+
+  if (catValues && catValues.length > 0 && catValues.some(v => v > 0)) {
+    const ctxCat = document.getElementById('categoryDoughnutChart').getContext('2d');
+    new Chart(ctxCat, {
+      type: 'doughnut',
+      data: {
+        labels: catLabels,
+        datasets: [{
+          data: catValues,
+          backgroundColor: chartColors.slice(0, catLabels.length),
+          borderWidth: 2,
+          borderColor: 'transparent',
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              boxWidth: 12,
+              padding: 12,
+              font: { family: "'Plus Jakarta Sans', sans-serif", size: 11 }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const label = context.label || '';
+                const val = context.raw || 0;
+                return ` ${label}: ₹${val.toLocaleString()}`;
+              }
+            }
+          }
+        },
+        cutout: '68%'
+      }
+    });
+  } else {
+    document.getElementById('categoryChartWrapper').classList.add('d-none');
+    document.getElementById('categoryChartEmpty').classList.remove('d-none');
+  }
+
+  // 2. Maintenance Spending Bar Chart
+  const maintLabels = {{ maint_labels_json | safe }};
+  const maintValues = {{ maint_values_json | safe }};
+
+  if (maintValues && maintValues.length > 0 && maintValues.some(v => v > 0)) {
+    const ctxMaint = document.getElementById('maintenanceBarChart').getContext('2d');
+    new Chart(ctxMaint, {
+      type: 'bar',
+      data: {
+        labels: maintLabels,
+        datasets: [{
+          label: 'Service Cost (₹)',
+          data: maintValues,
+          backgroundColor: '#F59E0B',
+          borderRadius: 8,
+          maxBarThickness: 38
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return ` Total Service: ₹${context.raw.toLocaleString()}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: {
+              font: { family: "'Plus Jakarta Sans', sans-serif", size: 11 }
+            }
+          },
+          y: {
+            beginAtZero: true,
+            grid: {
+              color: 'rgba(125, 125, 125, 0.1)'
+            },
+            ticks: {
+              callback: function(val) {
+                return '₹' + val.toLocaleString();
+              },
+              font: { family: "'Plus Jakarta Sans', sans-serif", size: 11 }
+            }
+          }
+        }
+      }
+    });
+  } else {
+    document.getElementById('maintenanceChartWrapper').classList.add('d-none');
+    document.getElementById('maintenanceChartEmpty').classList.remove('d-none');
+  }
+</script>
+{% endblock %}

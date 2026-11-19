@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In — My Control{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-7 col-lg-5 col-xl-4">
+
+      <!-- Auth Card -->
+      <div class="card shadow-lg border-0" style="background: var(--bg-surface); border-radius: var(--radius-xl); border: 1px solid var(--border-color) !important;">
+        <div class="card-body p-4 p-sm-5">
+
+          <!-- Header -->
+          <div class="text-center mb-4">
+            <div class="brand-icon mx-auto mb-3" style="width: 48px; height: 48px; font-size: 1.4rem;">
+              <i class="bi bi-shield-lock-fill"></i>
+            </div>
+            <h2 class="h3 fw-bold mb-1">Welcome Back</h2>
+            <p class="text-muted small">Sign in to your My Control dashboard</p>
+          </div>
+
+          <!-- Form -->
+          <form method="POST" action="{{ url_for('login') }}">
+
+            <!-- Email Input -->
+            <div class="mb-3">
+              <label class="form-label">Email Address</label>
+              <div class="input-group">
+                <span class="input-group-text border-end-0" style="background: var(--bg-muted); border-color: var(--border-color); color: var(--text-secondary);">
+                  <i class="bi bi-envelope"></i>
+                </span>
+                <input
+                  type="email"
+                  name="email"
+                  class="form-control border-start-0"
+                  placeholder="name@example.com"
+                  required
+                  autocomplete="email"
+                >
+              </div>
+            </div>
+
+            <!-- Password Input -->
+            <div class="mb-3">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label mb-0">Password</label>
+                <a href="#" class="small text-decoration-none" onclick="alert('Password reset link will be sent to your registered email.'); return false;">Forgot?</a>
+              </div>
+              <div class="input-group">
+                <span class="input-group-text border-end-0" style="background: var(--bg-muted); border-color: var(--border-color); color: var(--text-secondary);">
+                  <i class="bi bi-lock"></i>
+                </span>
+                <input
+                  type="password"
+                  name="password"
+                  id="passwordField"
+                  class="form-control border-start-0 border-end-0"
+                  placeholder="Enter your password"
+                  required
+                  autocomplete="current-password"
+                >
+                <button
+                  type="button"
+                  class="input-group-text border-start-0"
+                  id="togglePassword"
+                  style="background: var(--bg-muted); border-color: var(--border-color); color: var(--text-secondary); cursor: pointer;"
+                  title="Toggle visibility"
+                >
+                  <i class="bi bi-eye" id="toggleIcon"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Remember Me -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="rememberMe">
+                <label class="form-check-label small" for="rememberMe" style="color: var(--text-secondary);">
+                  Remember me for 30 days
+                </label>
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+              <i class="bi bi-box-arrow-in-right"></i> Sign In
+            </button>
+
+          </form>
+
+          <!-- Footer Switch -->
+          <div class="text-center mt-4 pt-2 border-top" style="border-color: var(--border-color-subtle) !important;">
+            <p class="small mb-0" style="color: var(--text-secondary);">
+              Don't have an account?
+              <a href="{{ url_for('register') }}" class="fw-semibold text-decoration-none">Create one for free</a>
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Trust Badge -->
+      <div class="text-center mt-4">
+        <span class="badge-saas badge-neutral">
+          <i class="bi bi-lock-fill text-success"></i> 256-bit Secure Encryption
+        </span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // Toggle password visibility
+  document.getElementById('togglePassword')?.addEventListener('click', function () {
+    const passwordField = document.getElementById('passwordField');
+    const toggleIcon = document.getElementById('toggleIcon');
+    if (passwordField.type === 'password') {
+      passwordField.type = 'text';
+      toggleIcon.className = 'bi bi-eye-slash';
+    } else {
+      passwordField.type = 'password';
+      toggleIcon.className = 'bi bi-eye';
+    }
+  });
+</script>
+{% endblock %}
