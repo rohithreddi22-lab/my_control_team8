@@ -101,7 +101,7 @@
             <i class="bi bi-wallet2"></i>
           </div>
         </div>
-        <div class="stat-value" style="font-size: 1.35rem;">₹{{ "{:,.0f}".format(stats.total_maintenance_cost) }}</div>
+        <div class="stat-value" style="font-size: 1.35rem;">₹{{ "{:,.0f}".format(stats.total_maintenance_cost or 0) }}</div>
       </a>
     </div>
 
@@ -282,8 +282,8 @@
                     {% if product.purchase_date %}
                       <div><i class="bi bi-calendar3 me-1 text-muted"></i> Purchased: {{ product.purchase_date }}</div>
                     {% endif %}
-                    {% if product.purchase_price %}
-                      <div><i class="bi bi-cash-stack me-1 text-muted"></i> Cost: <strong>₹{{ "{:,.2f}".format(product.purchase_price) }}</strong></div>
+                    {% if product.purchase_price is not none %}
+                      <div><i class="bi bi-cash-stack me-1 text-muted"></i> Cost: <strong>₹{{ "{:,.2f}".format(product.purchase_price or 0) }}</strong></div>
                     {% endif %}
                     {% if product.store %}
                       <div><i class="bi bi-shop me-1 text-muted"></i> Store: {{ product.store }}</div>

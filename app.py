@@ -2,6 +2,7 @@
 import os
 import uuid
 from flask import Flask, render_template, request, redirect, session, flash, jsonify
+from jinja2 import ChoiceLoader, FileSystemLoader
 import mysql.connector
 import json
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -10,6 +11,12 @@ from config import DB_CONFIG, SECRET_KEY
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+
+# Support templates both inside 'templates/' folder and at root directory
+app.jinja_loader = ChoiceLoader([
+    FileSystemLoader(os.path.join(app.root_path, "templates")),
+    FileSystemLoader(app.root_path),
+])
 
 # File Upload Configuration for Product Images
 UPLOAD_FOLDER = os.path.join(app.root_path, "static", "uploads", "products")
@@ -39,22 +46,80 @@ def get_db():
     return mysql.connector.connect(**DB_CONFIG)
 
 
-def ensure_image_column():
-    """Ensure image_path column exists in products table."""
+def init_db():
+    """Ensure all required tables and columns exist in the database."""
     try:
         db = get_db()
         cursor = db.cursor()
+        
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          email VARCHAR(255) NOT NULL UNIQUE,
+          password_hash VARCHAR(255) NOT NULL,
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS products (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          user_id INT NOT NULL,
+          name VARCHAR(150) NOT NULL,
+          category VARCHAR(50),
+          brand VARCHAR(100),
+          model_number VARCHAR(100),
+          purchase_date DATE,
+          purchase_price DECIMAL(10,2),
+          store VARCHAR(150),
+          notes TEXT,
+          image_path VARCHAR(255),
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+        """)
+        
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS warranties (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          product_id INT NOT NULL,
+          warranty_type VARCHAR(50),
+          start_date DATE,
+          expiry_date DATE NOT NULL,
+          provider VARCHAR(150),
+          document_path VARCHAR(255),
+          FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+        )
+        """)
+        
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS maintenance (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          product_id INT NOT NULL,
+          task VARCHAR(200) NOT NULL,
+          last_done_date DATE,
+          next_due_date DATE,
+          service_provider VARCHAR(150),
+          cost DECIMAL(10,2),
+          notes TEXT,
+          FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+        )
+        """)
+        
+        # Check image_path column specifically
         cursor.execute("SHOW COLUMNS FROM products LIKE 'image_path'")
         if not cursor.fetchone():
             cursor.execute("ALTER TABLE products ADD COLUMN image_path VARCHAR(255) NULL AFTER notes")
-            db.commit()
+            
+        db.commit()
         cursor.close()
         db.close()
+        print("Database initialized successfully.")
     except Exception as e:
-        print(f"Schema check info: {e}")
+        print(f"Database init notice: {e}")
 
 
-ensure_image_column()
+init_db()
 
 
 # =========================
@@ -67,133 +132,145 @@ def home():
         return redirect("/login")
 
     user_id = session["user_id"]
-    db = get_db()
-    cursor = db.cursor(dictionary=True)
+    try:
+        db = get_db()
+        cursor = db.cursor(dictionary=True)
 
-    # 1. Get all products for user
-    cursor.execute(
-        """
-        SELECT id, name, category, brand, model_number,
-               purchase_date, purchase_price, store, notes, image_path
-        FROM products
-        WHERE user_id = %s
-        ORDER BY id DESC
-        """,
-        (user_id,)
-    )
-    products = cursor.fetchall()
-    total_products = len(products)
+        # 1. Get all products for user
+        cursor.execute(
+            """
+            SELECT id, name, category, brand, model_number,
+                   purchase_date, purchase_price, store, notes, image_path
+            FROM products
+            WHERE user_id = %s
+            ORDER BY id DESC
+            """,
+            (user_id,)
+        )
+        products = cursor.fetchall()
+        total_products = len(products)
 
-    # 2. Get upcoming warranties (expiring within next 30 days)
-    cursor.execute(
-        """
-        SELECT w.id, w.expiry_date, w.warranty_type, w.provider,
-               DATEDIFF(w.expiry_date, CURDATE()) AS days_left,
-               p.id AS product_id,
-               p.name AS product_name
-        FROM warranties w
-        JOIN products p ON w.product_id = p.id
-        WHERE p.user_id = %s
-        AND w.expiry_date >= CURDATE()
-        AND w.expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
-        ORDER BY w.expiry_date ASC
-        """,
-        (user_id,)
-    )
-    upcoming_warranties = cursor.fetchall()
+        # 2. Get upcoming warranties (expiring within next 30 days)
+        cursor.execute(
+            """
+            SELECT w.id, w.expiry_date, w.warranty_type, w.provider,
+                   DATEDIFF(w.expiry_date, CURDATE()) AS days_left,
+                   p.id AS product_id,
+                   p.name AS product_name
+            FROM warranties w
+            JOIN products p ON w.product_id = p.id
+            WHERE p.user_id = %s
+            AND w.expiry_date >= CURDATE()
+            AND w.expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+            ORDER BY w.expiry_date ASC
+            """,
+            (user_id,)
+        )
+        upcoming_warranties = cursor.fetchall()
 
-    # 3. Get expired warranties
-    cursor.execute(
-        """
-        SELECT w.id, w.expiry_date, w.warranty_type, w.provider,
-               DATEDIFF(CURDATE(), w.expiry_date) AS days_ago,
-               p.id AS product_id,
-               p.name AS product_name
-        FROM warranties w
-        JOIN products p ON w.product_id = p.id
-        WHERE p.user_id = %s
-        AND w.expiry_date < CURDATE()
-        ORDER BY w.expiry_date DESC
-        """,
-        (user_id,)
-    )
-    expired_warranties = cursor.fetchall()
+        # 3. Get expired warranties
+        cursor.execute(
+            """
+            SELECT w.id, w.expiry_date, w.warranty_type, w.provider,
+                   DATEDIFF(CURDATE(), w.expiry_date) AS days_ago,
+                   p.id AS product_id,
+                   p.name AS product_name
+            FROM warranties w
+            JOIN products p ON w.product_id = p.id
+            WHERE p.user_id = %s
+            AND w.expiry_date < CURDATE()
+            ORDER BY w.expiry_date DESC
+            """,
+            (user_id,)
+        )
+        expired_warranties = cursor.fetchall()
 
-    # 4. Count total active warranties (any warranty where expiry_date >= today)
-    cursor.execute(
-        """
-        SELECT COUNT(*) AS active_count
-        FROM warranties w
-        JOIN products p ON w.product_id = p.id
-        WHERE p.user_id = %s
-        AND w.expiry_date >= CURDATE()
-        """,
-        (user_id,)
-    )
-    active_warranties_count = cursor.fetchone()["active_count"]
+        # 4. Count total active warranties (any warranty where expiry_date >= today)
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS active_count
+            FROM warranties w
+            JOIN products p ON w.product_id = p.id
+            WHERE p.user_id = %s
+            AND w.expiry_date >= CURDATE()
+            """,
+            (user_id,)
+        )
+        active_warranties_count = cursor.fetchone()["active_count"]
 
-    # 5. Get upcoming maintenance (due today or within the next 30 days)
-    cursor.execute(
-        """
-        SELECT m.id, m.task, m.last_done_date, m.next_due_date,
-               m.service_provider, m.cost, m.notes,
-               DATEDIFF(m.next_due_date, CURDATE()) AS days_until_due,
-               p.id AS product_id,
-               p.name AS product_name
-        FROM maintenance m
-        JOIN products p ON m.product_id = p.id
-        WHERE p.user_id = %s
-        AND m.next_due_date >= CURDATE()
-        AND m.next_due_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
-        ORDER BY m.next_due_date ASC
-        """,
-        (user_id,)
-    )
-    upcoming_maintenance = cursor.fetchall()
+        # 5. Get upcoming maintenance (due today or within the next 30 days)
+        cursor.execute(
+            """
+            SELECT m.id, m.task, m.last_done_date, m.next_due_date,
+                   m.service_provider, m.cost, m.notes,
+                   DATEDIFF(m.next_due_date, CURDATE()) AS days_until_due,
+                   p.id AS product_id,
+                   p.name AS product_name
+            FROM maintenance m
+            JOIN products p ON m.product_id = p.id
+            WHERE p.user_id = %s
+            AND m.next_due_date >= CURDATE()
+            AND m.next_due_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+            ORDER BY m.next_due_date ASC
+            """,
+            (user_id,)
+        )
+        upcoming_maintenance = cursor.fetchall()
 
-    # 6. Get overdue maintenance (due date before today)
-    cursor.execute(
-        """
-        SELECT m.id, m.task, m.last_done_date, m.next_due_date,
-               m.service_provider, m.cost, m.notes,
-               DATEDIFF(CURDATE(), m.next_due_date) AS days_overdue,
-               p.id AS product_id,
-               p.name AS product_name
-        FROM maintenance m
-        JOIN products p ON m.product_id = p.id
-        WHERE p.user_id = %s
-        AND m.next_due_date < CURDATE()
-        ORDER BY m.next_due_date ASC
-        """,
-        (user_id,)
-    )
-    overdue_maintenance = cursor.fetchall()
+        # 6. Get overdue maintenance (due date before today)
+        cursor.execute(
+            """
+            SELECT m.id, m.task, m.last_done_date, m.next_due_date,
+                   m.service_provider, m.cost, m.notes,
+                   DATEDIFF(CURDATE(), m.next_due_date) AS days_overdue,
+                   p.id AS product_id,
+                   p.name AS product_name
+            FROM maintenance m
+            JOIN products p ON m.product_id = p.id
+            WHERE p.user_id = %s
+            AND m.next_due_date < CURDATE()
+            ORDER BY m.next_due_date ASC
+            """,
+            (user_id,)
+        )
+        overdue_maintenance = cursor.fetchall()
 
-    # 7. Total maintenance expenses
-    cursor.execute(
-        """
-        SELECT COALESCE(SUM(m.cost), 0) AS total_maintenance_cost
-        FROM maintenance m
-        JOIN products p ON m.product_id = p.id
-        WHERE p.user_id = %s
-        """,
-        (user_id,)
-    )
-    total_maintenance_cost = float(cursor.fetchone()["total_maintenance_cost"] or 0)
+        # 7. Total maintenance expenses
+        cursor.execute(
+            """
+            SELECT COALESCE(SUM(m.cost), 0) AS total_maintenance_cost
+            FROM maintenance m
+            JOIN products p ON m.product_id = p.id
+            WHERE p.user_id = %s
+            """,
+            (user_id,)
+        )
+        total_maintenance_cost = float(cursor.fetchone()["total_maintenance_cost"] or 0)
 
-    # 8. Total asset purchase valuation
-    cursor.execute(
-        """
-        SELECT COALESCE(SUM(purchase_price), 0) AS total_asset_value
-        FROM products
-        WHERE user_id = %s
-        """,
-        (user_id,)
-    )
-    total_asset_value = float(cursor.fetchone()["total_asset_value"] or 0)
+        # 8. Total asset purchase valuation
+        cursor.execute(
+            """
+            SELECT COALESCE(SUM(purchase_price), 0) AS total_asset_value
+            FROM products
+            WHERE user_id = %s
+            """,
+            (user_id,)
+        )
+        total_asset_value = float(cursor.fetchone()["total_asset_value"] or 0)
 
-    cursor.close()
-    db.close()
+        cursor.close()
+        db.close()
+    except Exception as e:
+        flash(f"Database error while loading dashboard: {e}", "danger")
+        products = []
+        upcoming_warranties = []
+        expired_warranties = []
+        upcoming_maintenance = []
+        overdue_maintenance = []
+        total_products = 0
+        active_warranties_count = 0
+        total_maintenance_cost = 0.0
+        total_asset_value = 0.0
 
     # Metrics dictionary for clean dashboard access
     stats = {
@@ -729,34 +806,38 @@ def register():
         email = request.form["email"].strip().lower()
         password = request.form["password"]
 
-        db = get_db()
-        cursor = db.cursor()
+        try:
+            db = get_db()
+            cursor = db.cursor()
 
-        cursor.execute(
-            "SELECT id FROM users WHERE email = %s",
-            (email,)
-        )
+            cursor.execute(
+                "SELECT id FROM users WHERE email = %s",
+                (email,)
+            )
 
-        if cursor.fetchone():
+            if cursor.fetchone():
+                cursor.close()
+                db.close()
+                flash("That email is already registered.", "warning")
+                return redirect("/register")
+
+            cursor.execute(
+                """
+                INSERT INTO users (name, email, password_hash)
+                VALUES (%s, %s, %s)
+                """,
+                (name, email, generate_password_hash(password))
+            )
+
+            db.commit()
             cursor.close()
             db.close()
-            flash("That email is already registered.")
+
+            flash("Account created. Please log in.", "success")
+            return redirect("/login")
+        except Exception as e:
+            flash(f"Database error: {e}. Check MySQL connection or credentials.", "danger")
             return redirect("/register")
-
-        cursor.execute(
-            """
-            INSERT INTO users (name, email, password_hash)
-            VALUES (%s, %s, %s)
-            """,
-            (name, email, generate_password_hash(password))
-        )
-
-        db.commit()
-        cursor.close()
-        db.close()
-
-        flash("Account created. Please log in.")
-        return redirect("/login")
 
     return render_template("register.html")
 
@@ -771,17 +852,21 @@ def login():
         email = request.form["email"].strip().lower()
         password = request.form["password"]
 
-        db = get_db()
-        cursor = db.cursor(dictionary=True)
+        try:
+            db = get_db()
+            cursor = db.cursor(dictionary=True)
 
-        cursor.execute(
-            "SELECT * FROM users WHERE email = %s",
-            (email,)
-        )
+            cursor.execute(
+                "SELECT * FROM users WHERE email = %s",
+                (email,)
+            )
 
-        user = cursor.fetchone()
-        cursor.close()
-        db.close()
+            user = cursor.fetchone()
+            cursor.close()
+            db.close()
+        except Exception as e:
+            flash(f"Database connection error: {e}. Check MySQL server and credentials.", "danger")
+            return redirect("/login")
 
         if user and check_password_hash(
             user["password_hash"], password
@@ -790,7 +875,7 @@ def login():
             session["user_name"] = user["name"]
             return redirect("/")
 
-        flash("Wrong email or password.")
+        flash("Wrong email or password.", "danger")
         return redirect("/login")
 
     return render_template("login.html")

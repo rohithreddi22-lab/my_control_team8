@@ -149,7 +149,7 @@
                   <td>{{ exp.service_provider or 'Self / Authorized' }}</td>
                   <td>{{ exp.last_done_date or 'Recent' }}</td>
                   <td class="text-end pe-4 fw-bold text-success" style="font-size: 1.05rem;">
-                    ₹{{ "{:,.2f}".format(exp.cost) }}
+                    ₹{{ "{:,.2f}".format(exp.cost or 0) }}
                   </td>
                 </tr>
               {% endfor %}
@@ -193,7 +193,7 @@
                   <td>{{ p.purchase_date or 'N/A' }}</td>
                   <td>{{ p.store or 'N/A' }}</td>
                   <td class="text-end pe-4 fw-bold text-primary" style="font-size: 1.05rem;">
-                    ₹{{ "{:,.2f}".format(p.purchase_price) }}
+                    ₹{{ "{:,.2f}".format(p.purchase_price or 0) }}
                   </td>
                 </tr>
               {% endfor %}
